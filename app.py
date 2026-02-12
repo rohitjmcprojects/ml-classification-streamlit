@@ -2,25 +2,33 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-st.title("ML Classification Dashboard")
+st.set_page_config(page_title="ML Dashboard", layout="wide")
 
-file = st.file_uploader("Upload Test CSV")
+st.title("💼 Income Prediction using ML Models")
+st.write("Upload dataset and predict income category using trained models.")
 
-model_name = st.selectbox(
+# Sidebar
+st.sidebar.header("Controls")
+file = st.sidebar.file_uploader("Upload CSV")
+model_name = st.sidebar.selectbox(
     "Select Model",
     ["logistic","dtree","knn","nb","rf","xgb"]
 )
 
 if file:
-    data = pd.read_csv(file)
+    original_data = pd.read_csv(file)
 
-    # Convert categorical to numeric
-    data = pd.get_dummies(data)
+    st.subheader("📂 Uploaded Data Preview")
+    st.dataframe(original_data.head())
+
+    # Keep copy for display
+    display_data = original_data.copy()
+
+    # Convert categorical → numeric
+    data = pd.get_dummies(original_data)
 
     # Load training columns
     train_cols = joblib.load("model/columns.pkl")
-
-    # REMOVE TARGET COLUMN FROM TRAINING COLUMNS
     train_cols = [col for col in train_cols if col != "income_<=50K"]
 
     # Match columns
@@ -31,8 +39,41 @@ if file:
     model = joblib.load(f"model/{model_name}.pkl")
 
     X = scaler.transform(data)
-
     preds = model.predict(X)
 
-    st.subheader("Predictions")
-    st.write(preds)
+    # Convert 0/1 → readable labels
+    pred_labels = ["High Income (>50K)" if p == 1 else "Low Income (<=50K)" for p in preds]
+
+    # Summary metrics
+    high_count = sum(preds)
+    low_count = len(preds) - high_count
+
+    st.subheader("📊 Prediction Summary")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Records", len(preds))
+    col2.metric("High Income", high_count)
+    col3.metric("Low Income", low_count)
+
+    # Create result table
+    result_df = display_data.copy()
+
+    # Add Sr No
+    result_df.insert(0, "Sr No", range(1, len(result_df)+1))
+
+    # Add Prediction column
+    result_df["Prediction"] = pred_labels
+
+    # Select important columns (only if they exist)
+    important_cols = ["Sr No"]
+
+    for col in ["age", "education", "occupation", "hours.per.week"]:
+        if col in result_df.columns:
+            important_cols.append(col)
+
+    important_cols.append("Prediction")
+
+    result_df = result_df[important_cols]
+
+    st.subheader("🔍 Prediction Results")
+    st.dataframe(result_df)
