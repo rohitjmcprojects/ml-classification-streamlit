@@ -4,10 +4,9 @@ import joblib
 
 st.set_page_config(page_title="Income Prediction Dashboard", layout="wide")
 
-# ---------- HIDE STREAMLIT DEFAULT ICONS ----------
+# ---------- HIDE ONLY MENU + FOOTER (NOT HEADER) ----------
 st.markdown("""
     <style>
-    header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
@@ -33,7 +32,6 @@ if file:
     st.subheader("Uploaded Data Preview")
     st.dataframe(original_data.head())
 
-    # Keep original for display
     display_data = original_data.copy()
 
     # Convert categorical → numeric
@@ -43,7 +41,6 @@ if file:
     train_cols = joblib.load("model/columns.pkl")
     train_cols = [col for col in train_cols if col != "income_<=50K"]
 
-    # Match columns
     data = data.reindex(columns=train_cols, fill_value=0)
 
     # Load scaler & model
@@ -53,10 +50,9 @@ if file:
     X = scaler.transform(data)
     preds = model.predict(X)
 
-    # Convert 0/1 → readable labels
     pred_labels = ["High Income (>50K)" if p == 1 else "Low Income (<=50K)" for p in preds]
 
-    # ---------- SUMMARY METRICS ----------
+    # ---------- SUMMARY ----------
     high_count = sum(preds)
     low_count = len(preds) - high_count
 
@@ -68,22 +64,15 @@ if file:
 
     # ---------- RESULT TABLE ----------
     result_df = display_data.copy()
-
-    # Add Sr No
     result_df.insert(0, "Sr No", range(1, len(result_df) + 1))
-
-    # Add Prediction column
     result_df["Prediction"] = pred_labels
 
-    # Show only important columns if they exist
     important_cols = ["Sr No"]
-
     for col in ["age", "education", "occupation", "hours.per.week"]:
         if col in result_df.columns:
             important_cols.append(col)
 
     important_cols.append("Prediction")
-
     result_df = result_df[important_cols]
 
     st.subheader("Prediction Results")
